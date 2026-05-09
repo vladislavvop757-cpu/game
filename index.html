@@ -1,27 +1,48 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Geometry Dash Fullscreen</title>
+    <title>Geometry Dash - Main Menu</title>
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #000; }
         canvas { display: block; }
-        #info { 
-            position: absolute; top: 20px; left: 20px; 
-            color: white; font-family: 'Arial', sans-serif; 
-            font-size: 24px; font-weight: bold; text-shadow: 2px 2px 4px #000;
-            pointer-events: none;
+        #overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            background: rgba(0, 0, 0, 0.4); z-index: 10;
+        }
+        .title { 
+            color: #00ff00; font-family: 'Arial Black', sans-serif; font-size: 60px; 
+            text-shadow: 5px 5px #000; margin-bottom: 30px; 
+        }
+        .play-button {
+            padding: 20px 60px; font-size: 30px; font-family: Arial; font-weight: bold;
+            color: white; background: #00ff00; border: 4px solid white; border-radius: 15px;
+            cursor: pointer; text-shadow: 2px 2px #000; transition: transform 0.2s;
+        }
+        .play-button:hover { transform: scale(1.1); background: #00cc00; }
+        #ui { 
+            position: absolute; top: 20px; left: 20px; color: white; 
+            font-family: Arial; font-size: 24px; font-weight: bold; display: none; 
         }
     </style>
 </head>
 <body>
-    <div id="info">Счет: 0</div>
+
+    <div id="ui">Счет: 0</div>
+
+    <div id="overlay">
+        <div class="title">GEOMETRY DASH</div>
+        <button class="play-button" onclick="startGame()">ИГРАТЬ</button>
+    </div>
+
     <canvas id="gameCanvas"></canvas>
 
 <script>
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
+    const overlay = document.getElementById('overlay');
+    const ui = document.getElementById('ui');
 
-    // Настройка полного экрана
     function resize() {
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
@@ -30,40 +51,35 @@
     resize();
 
     let score = 0;
-    let gameActive = true;
-    const groundY = canvas.height * 0.75; // Линия пола на 75% высоты экрана
+    let gameActive = false; // Игра начинается только после нажатия кнопки
+    const groundY = canvas.height * 0.75;
 
     const player = {
-        x: 100,
-        y: 0,
-        size: 50,
-        color: '#00ff00',
-        dy: 0,
-        jumpForce: 15,
-        gravity: 0.8,
-        grounded: false,
-        rotation: 0
+        x: 150, y: groundY - 50, size: 50, color: '#00ff00',
+        dy: 0, jumpForce: 15, gravity: 0.8, grounded: false, rotation: 0
     };
-
-    player.y = groundY - player.size; // Начальная позиция на полу
 
     const obstacles = [];
     let frame = 0;
 
+    function startGame() {
+        overlay.style.display = 'none';
+        ui.style.display = 'block';
+        gameActive = true;
+        score = 0;
+        obstacles.length = 0;
+        frame = 0;
+        requestAnimationFrame(gameLoop);
+    }
+
     function spawnObstacle() {
         const size = 50;
-        obstacles.push({
-            x: canvas.width,
-            y: groundY, // Шип стоит ровно на линии пола
-            width: size,
-            height: size
-        });
+        obstacles.push({ x: canvas.width, y: groundY, width: size, height: size });
     }
 
     function update() {
         if (!gameActive) return;
 
-        // Физика игрока
         player.dy += player.gravity;
         player.y += player.dy;
 
@@ -77,101 +93,78 @@
             player.rotation += 7;
         }
 
-        // Спавн и движение шипов
         if (frame % 90 === 0) spawnObstacle();
         frame++;
 
         obstacles.forEach((obs, index) => {
-            obs.x -= 9; // Скорость движения
-
-            // СТРОГАЯ ПРОВЕРКА СМЕРТИ (Хитбокс)
-            // Мы уменьшаем зону столкновения на 10 пикселей, чтобы было честно
-            const p = {
-                left: player.x + 5,
-                right: player.x + player.size - 5,
-                top: player.y + 5,
-                bottom: player.y + player.size - 5
-            };
-
-            // Проверка: зашел ли игрок в треугольник шипа
-            if (p.right > obs.x + 10 && p.left < obs.x + obs.width - 10 && p.bottom > obs.y - obs.height + 10) {
+            obs.x -= 9;
+            if (player.x + 10 < obs.x + obs.width - 10 && 
+                player.x + player.size - 10 > obs.x + 10 && 
+                player.y + player.size > obs.y - obs.height + 10) {
                 gameOver();
             }
-
             if (obs.x < -100) {
                 obstacles.splice(index, 1);
                 score++;
-                document.getElementById('info').innerText = `Счет: ${score}`;
+                ui.innerText = `Счет: ${score}`;
             }
         });
     }
 
     function draw() {
-        // Отрисовка фона
-        const gradient = ctx.createLinearGradient(0, 0, 0, groundY);
-        gradient.addColorStop(0, '#0051ff');
-        gradient.addColorStop(1, '#001e5e');
-        ctx.fillStyle = gradient;
+        // Фон
+        const grad = ctx.createLinearGradient(0, 0, 0, groundY);
+        grad.addColorStop(0, '#0051ff'); grad.addColorStop(1, '#001e5e');
+        ctx.fillStyle = grad;
         ctx.fillRect(0, 0, canvas.width, groundY);
 
-        // Отрисовка пола
+        // Пол
         ctx.fillStyle = '#222';
         ctx.fillRect(0, groundY, canvas.width, canvas.height - groundY);
-        ctx.strokeStyle = 'white';
-        ctx.lineWidth = 4;
-        ctx.beginPath();
-        ctx.moveTo(0, groundY);
-        ctx.lineTo(canvas.width, groundY);
-        ctx.stroke();
+        ctx.strokeStyle = 'white'; ctx.lineWidth = 4;
+        ctx.beginPath(); ctx.moveTo(0, groundY); ctx.lineTo(canvas.width, groundY); ctx.stroke();
 
         // Сетка
         ctx.strokeStyle = 'rgba(255,255,255,0.1)';
-        ctx.lineWidth = 1;
-        for (let i = 0; i < canvas.width; i += 60) {
+        for (let i = 0; i < canvas.width + 60; i += 60) {
             ctx.beginPath();
             ctx.moveTo(i - (frame * 9 % 60), 0);
             ctx.lineTo(i - (frame * 9 % 60), groundY);
             ctx.stroke();
         }
 
-        // Рисуем игрока с лицом
+        // Игрок
         ctx.save();
         ctx.translate(player.x + player.size/2, player.y + player.size/2);
         ctx.rotate(player.rotation * Math.PI / 180);
         ctx.fillStyle = player.color;
         ctx.fillRect(-player.size/2, -player.size/2, player.size, player.size);
-        ctx.strokeStyle = 'black';
-        ctx.lineWidth = 3;
         ctx.strokeRect(-player.size/2, -player.size/2, player.size, player.size);
-        // Глаза и рот
-        ctx.fillStyle = 'black';
-        ctx.fillRect(-12, -12, 8, 8);
-        ctx.fillRect(4, -12, 8, 8);
-        ctx.fillRect(-12, 8, 24, 4);
+        ctx.fillStyle = 'black'; // Лицо
+        ctx.fillRect(-12, -12, 8, 8); ctx.fillRect(4, -12, 8, 8); ctx.fillRect(-12, 8, 24, 4);
         ctx.restore();
 
-        // Рисуем черные шипы
+        // Шипы
         obstacles.forEach(obs => {
             ctx.fillStyle = 'black';
             ctx.beginPath();
-            ctx.moveTo(obs.x, obs.y); // Нижний левый угол
-            ctx.lineTo(obs.x + obs.width / 2, obs.y - obs.height); // Вершина
-            ctx.lineTo(obs.x + obs.width, obs.y); // Нижний правый угол
-            ctx.closePath();
+            ctx.moveTo(obs.x, obs.y);
+            ctx.lineTo(obs.x + obs.width/2, obs.y - obs.height);
+            ctx.lineTo(obs.x + obs.width, obs.y);
             ctx.fill();
-            ctx.strokeStyle = 'white';
-            ctx.lineWidth = 2;
-            ctx.stroke();
-        });
-
-        if (gameActive) requestAnimationFrame(() => {
-            update();
-            draw();
+            ctx.strokeStyle = 'white'; ctx.lineWidth = 2; ctx.stroke();
         });
     }
 
+    function gameLoop() {
+        if (!gameActive) return;
+        update();
+        draw();
+        requestAnimationFrame(gameLoop);
+    }
+
     function jump() {
-        if (player.grounded) {
+        if (player.grounded && gameActive) {
             player.dy = -player.jumpForce;
             player.grounded = false;
         }
@@ -179,16 +172,14 @@
 
     function gameOver() {
         gameActive = false;
-        setTimeout(() => {
-            alert("Игра окончена! Твой счет: " + score);
-            location.reload();
-        }, 10);
+        alert("Игра окончена! Счет: " + score);
+        location.reload();
     }
 
-    window.addEventListener('keydown', (e) => { if (e.code === 'Space' || e.code === 'ArrowUp') jump(); });
-    window.addEventListener('touchstart', (e) => { e.preventDefault(); jump(); }, {passive: false});
+    window.addEventListener('keydown', (e) => { if (e.code === 'Space') jump(); });
     window.addEventListener('mousedown', jump);
-
+    
+    // Рисуем начальный кадр для красоты меню
     draw();
 </script>
 </body>
