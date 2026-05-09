@@ -1,34 +1,39 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Simple Dash Clone</title>
+    <title>Geometry Dash Clone</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #222; font-family: Arial; }
-        canvas { display: block; background: #0072ff; border-bottom: 5px solid #fff; }
-        #info { position: absolute; top: 10px; left: 10px; color: white; font-size: 20px; }
+        body { margin: 0; overflow: hidden; background: #222; font-family: 'Segoe UI', sans-serif; }
+        /* Задний фон с градиентом */
+        canvas { 
+            display: block; 
+            background: linear-gradient(to bottom, #0051ff, #001e5e); 
+            border-bottom: 8px solid #000; 
+        }
+        #info { position: absolute; top: 15px; left: 15px; color: white; font-size: 22px; text-shadow: 2px 2px 4px #000; }
     </style>
 </head>
 <body>
-    <div id="info">Счет: 0 | Нажми пробел или кликни для прыжка</div>
+    <div id="info">Счет: 0</div>
     <canvas id="gameCanvas"></canvas>
 
 <script>
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
     canvas.width = window.innerWidth;
-    canvas.height = 400;
+    canvas.height = 450;
 
     let score = 0;
     let gameActive = true;
 
     const player = {
-        x: 50,
+        x: 80,
         y: 350,
-        size: 30,
-        color: '#ffff00',
+        size: 40,
+        color: '#00ff00', // Ярко-зеленый куб
         dy: 0,
-        jumpForce: 12,
-        gravity: 0.6,
+        jumpForce: 13,
+        gravity: 0.7,
         grounded: false,
         rotation: 0
     };
@@ -39,110 +44,101 @@
     function spawnObstacle() {
         obstacles.push({
             x: canvas.width,
-            y: 370,
-            width: 30,
-            height: 30,
-            color: '#ff4b2b'
+            y: 410,
+            width: 40,
+            height: 40,
+            color: '#000000' // Черные шипы
         });
     }
 
     function update() {
-    if (!gameActive) return;
+        if (!gameActive) return;
 
-    // Гравитация и движение
-    player.dy += player.gravity;
-    player.y += player.dy;
+        player.dy += player.gravity;
+        player.y += player.dy;
 
-    // Проверка приземления
-    if (player.y + player.size > 400) {
-        player.y = 400 - player.size;
-        player.dy = 0;
-        player.grounded = true;
+        if (player.y + player.size > 410) {
+            player.y = 410 - player.size;
+            player.dy = 0;
+            player.grounded = true;
+            player.rotation = Math.round(player.rotation / 90) * 90;
+        } else {
+            player.grounded = false;
+            player.rotation += 6; 
+        }
 
-        // --- ЛОГИКА ВЫРАВНИВАНИЯ ---
-        // Округляем текущий угол до ближайшего числа, кратного 90
-        player.rotation = Math.round(player.rotation / 90) * 90;
-    } else {
-        player.grounded = false;
-        // Скорость вращения (можно настроить под высоту прыжка)
-        player.rotation += 5; 
+        if (frame % 80 === 0) spawnObstacle();
+        frame++;
+
+        obstacles.forEach((obs, index) => {
+            obs.x -= 8;
+            
+            // Проверка столкновения
+            if (player.x + 5 < obs.x + obs.width - 5 &&
+                player.x + player.size - 5 > obs.x + 5 &&
+                player.y + 5 < obs.y + obs.height &&
+                player.y + player.size > obs.y) {
+                gameOver();
+            }
+
+            if (obs.x < -50) {
+                obstacles.splice(index, 1);
+                score++;
+                document.getElementById('info').innerText = `Счет: ${score}`;
+            }
+        });
     }
 
-    // Движение препятствий и коллизии (остаются без изменений)
-    obstacles.forEach((obs, index) => {
-        obs.x -= 6;
-        if (player.x < obs.x + obs.width &&
-            player.x + player.size > obs.x &&
-            player.y < obs.y + obs.height &&
-            player.y + player.size > obs.y) {
-            gameOver();
-        }
-        if (obs.x < -50) {
-            obstacles.splice(index, 1);
-            score++;
-            document.getElementById('info').innerText = `Счет: ${score} | Прыжок: Пробел`;
-        }
-    });
-}
-function update() {
-    if (!gameActive) return;
+    function drawPlayer() {
+        ctx.save();
+        ctx.translate(player.x + player.size/2, player.y + player.size/2);
+        ctx.rotate(player.rotation * Math.PI / 180);
+        
+        // Тело кубика
+        ctx.fillStyle = player.color;
+        ctx.fillRect(-player.size/2, -player.size/2, player.size, player.size);
+        ctx.strokeStyle = 'white';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(-player.size/2, -player.size/2, player.size, player.size);
 
-    // Гравитация и движение
-    player.dy += player.gravity;
-    player.y += player.dy;
+        // Рисуем лицо (глаза)
+        ctx.fillStyle = 'black';
+        // Левый глаз
+        ctx.fillRect(-player.size/4, -player.size/4, 6, 6);
+        // Правый глаз
+        ctx.fillRect(player.size/8, -player.size/4, 6, 6);
+        // Рот
+        ctx.fillRect(-player.size/4, player.size/8, player.size/2, 4);
 
-    // Проверка приземления
-    if (player.y + player.size > 400) {
-        player.y = 400 - player.size;
-        player.dy = 0;
-        player.grounded = true;
-
-        // --- ЛОГИКА ВЫРАВНИВАНИЯ ---
-        // Округляем текущий угол до ближайшего числа, кратного 90
-        player.rotation = Math.round(player.rotation / 90) * 90;
-    } else {
-        player.grounded = false;
-        // Скорость вращения (можно настроить под высоту прыжка)
-        player.rotation += 5; 
+        ctx.restore();
     }
-
-    // Движение препятствий и коллизии (остаются без изменений)
-    obstacles.forEach((obs, index) => {
-        obs.x -= 6;
-        if (player.x < obs.x + obs.width &&
-            player.x + player.size > obs.x &&
-            player.y < obs.y + obs.height &&
-            player.y + player.size > obs.y) {
-            gameOver();
-        }
-        if (obs.x < -50) {
-            obstacles.splice(index, 1);
-            score++;
-            document.getElementById('info').innerText = `Счет: ${score} | Прыжок: Пробел`;
-        }
-    });
-}
 
     function draw() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        // Рисуем игрока
-        ctx.save();
-        ctx.translate(player.x + player.size/2, player.y + player.size/2);
-        ctx.rotate(player.rotation * Math.PI / 180);
-        ctx.fillStyle = player.color;
-        ctx.fillRect(-player.size/2, -player.size/2, player.size, player.size);
-        ctx.strokeRect(-player.size/2, -player.size/2, player.size, player.size);
-        ctx.restore();
+        // Сетка на фоне (как в оригинале)
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+        for (let i = 0; i < canvas.width; i += 50) {
+            ctx.beginPath();
+            ctx.moveTo(i - (frame % 50), 0);
+            ctx.lineTo(i - (frame % 50), canvas.height);
+            ctx.stroke();
+        }
 
-        // Рисуем препятствия (шипы/блоки)
+        drawPlayer();
+
+        // Рисуем черные шипы
         obstacles.forEach(obs => {
             ctx.fillStyle = obs.color;
             ctx.beginPath();
-            ctx.moveTo(obs.x, obs.y + obs.height);
-            ctx.lineTo(obs.x + obs.width/2, obs.y);
-            ctx.lineTo(obs.x + obs.width, obs.y + obs.height);
+            ctx.moveTo(obs.x, obs.y);
+            ctx.lineTo(obs.x + obs.width / 2, obs.y - obs.height);
+            ctx.lineTo(obs.x + obs.width, obs.y);
             ctx.fill();
+            // Обводка шипа для четкости
+            ctx.strokeStyle = 'white';
+            ctx.lineWidth = 1;
+            ctx.stroke();
         });
     }
 
@@ -161,13 +157,12 @@ function update() {
 
     function gameOver() {
         gameActive = false;
-        alert("Игра окончена! Твой счет: " + score);
+        alert("Упс! Попробуй еще раз. Счет: " + score);
         location.reload();
     }
 
-    window.addEventListener('keydown', (e) => { if (e.code === 'Space') jump(); });
+    window.addEventListener('keydown', (e) => { if (e.code === 'Space' || e.code === 'ArrowUp') jump(); });
     window.addEventListener('mousedown', jump);
-
     gameLoop();
 </script>
 </body>
