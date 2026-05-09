@@ -47,44 +47,81 @@
     }
 
     function update() {
-        if (!gameActive) return;
+    if (!gameActive) return;
 
-        // Гравитация и прыжок
-        player.dy += player.gravity;
-        player.y += player.dy;
+    // Гравитация и движение
+    player.dy += player.gravity;
+    player.y += player.dy;
 
-        if (player.y + player.size > 400) {
-            player.y = 400 - player.size;
-            player.dy = 0;
-            player.grounded = true;
-        } else {
-            player.grounded = false;
-            player.rotation += 5; // Вращение в прыжке
-        }
+    // Проверка приземления
+    if (player.y + player.size > 400) {
+        player.y = 400 - player.size;
+        player.dy = 0;
+        player.grounded = true;
 
-        // Спавн препятствий
-        if (frame % 100 === 0) spawnObstacle();
-        frame++;
-
-        // Движение препятствий
-        obstacles.forEach((obs, index) => {
-            obs.x -= 6;
-            
-            // Коллизия
-            if (player.x < obs.x + obs.width &&
-                player.x + player.size > obs.x &&
-                player.y < obs.y + obs.height &&
-                player.y + player.size > obs.y) {
-                gameOver();
-            }
-
-            if (obs.x < -50) {
-                obstacles.splice(index, 1);
-                score++;
-                document.getElementById('info').innerText = `Счет: ${score} | Нажми пробел для прыжка`;
-            }
-        });
+        // --- ЛОГИКА ВЫРАВНИВАНИЯ ---
+        // Округляем текущий угол до ближайшего числа, кратного 90
+        player.rotation = Math.round(player.rotation / 90) * 90;
+    } else {
+        player.grounded = false;
+        // Скорость вращения (можно настроить под высоту прыжка)
+        player.rotation += 5; 
     }
+
+    // Движение препятствий и коллизии (остаются без изменений)
+    obstacles.forEach((obs, index) => {
+        obs.x -= 6;
+        if (player.x < obs.x + obs.width &&
+            player.x + player.size > obs.x &&
+            player.y < obs.y + obs.height &&
+            player.y + player.size > obs.y) {
+            gameOver();
+        }
+        if (obs.x < -50) {
+            obstacles.splice(index, 1);
+            score++;
+            document.getElementById('info').innerText = `Счет: ${score} | Прыжок: Пробел`;
+        }
+    });
+}
+function update() {
+    if (!gameActive) return;
+
+    // Гравитация и движение
+    player.dy += player.gravity;
+    player.y += player.dy;
+
+    // Проверка приземления
+    if (player.y + player.size > 400) {
+        player.y = 400 - player.size;
+        player.dy = 0;
+        player.grounded = true;
+
+        // --- ЛОГИКА ВЫРАВНИВАНИЯ ---
+        // Округляем текущий угол до ближайшего числа, кратного 90
+        player.rotation = Math.round(player.rotation / 90) * 90;
+    } else {
+        player.grounded = false;
+        // Скорость вращения (можно настроить под высоту прыжка)
+        player.rotation += 5; 
+    }
+
+    // Движение препятствий и коллизии (остаются без изменений)
+    obstacles.forEach((obs, index) => {
+        obs.x -= 6;
+        if (player.x < obs.x + obs.width &&
+            player.x + player.size > obs.x &&
+            player.y < obs.y + obs.height &&
+            player.y + player.size > obs.y) {
+            gameOver();
+        }
+        if (obs.x < -50) {
+            obstacles.splice(index, 1);
+            score++;
+            document.getElementById('info').innerText = `Счет: ${score} | Прыжок: Пробел`;
+        }
+    });
+}
 
     function draw() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
