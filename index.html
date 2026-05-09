@@ -1,16 +1,16 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Geometry Dash Clone</title>
+    <title>Geometry Dash Fullscreen</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #222; font-family: 'Segoe UI', sans-serif; }
-        /* Задний фон с градиентом */
-        canvas { 
-            display: block; 
-            background: linear-gradient(to bottom, #0051ff, #001e5e); 
-            border-bottom: 8px solid #000; 
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #000; }
+        canvas { display: block; }
+        #info { 
+            position: absolute; top: 20px; left: 20px; 
+            color: white; font-family: 'Arial', sans-serif; 
+            font-size: 24px; font-weight: bold; text-shadow: 2px 2px 4px #000;
+            pointer-events: none;
         }
-        #info { position: absolute; top: 15px; left: 15px; color: white; font-size: 22px; text-shadow: 2px 2px 4px #000; }
     </style>
 </head>
 <body>
@@ -20,68 +20,85 @@
 <script>
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
-    canvas.width = window.innerWidth;
-    canvas.height = 450;
+
+    // Настройка полного экрана
+    function resize() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resize);
+    resize();
 
     let score = 0;
     let gameActive = true;
+    const groundY = canvas.height * 0.75; // Линия пола на 75% высоты экрана
 
     const player = {
-        x: 80,
-        y: 350,
-        size: 40,
-        color: '#00ff00', // Ярко-зеленый куб
+        x: 100,
+        y: 0,
+        size: 50,
+        color: '#00ff00',
         dy: 0,
-        jumpForce: 13,
-        gravity: 0.7,
+        jumpForce: 15,
+        gravity: 0.8,
         grounded: false,
         rotation: 0
     };
+
+    player.y = groundY - player.size; // Начальная позиция на полу
 
     const obstacles = [];
     let frame = 0;
 
     function spawnObstacle() {
+        const size = 50;
         obstacles.push({
             x: canvas.width,
-            y: 410,
-            width: 40,
-            height: 40,
-            color: '#000000' // Черные шипы
+            y: groundY, // Шип стоит ровно на линии пола
+            width: size,
+            height: size
         });
     }
 
     function update() {
         if (!gameActive) return;
 
+        // Физика игрока
         player.dy += player.gravity;
         player.y += player.dy;
 
-        if (player.y + player.size > 410) {
-            player.y = 410 - player.size;
+        if (player.y + player.size > groundY) {
+            player.y = groundY - player.size;
             player.dy = 0;
             player.grounded = true;
             player.rotation = Math.round(player.rotation / 90) * 90;
         } else {
             player.grounded = false;
-            player.rotation += 6; 
+            player.rotation += 7;
         }
 
-        if (frame % 80 === 0) spawnObstacle();
+        // Спавн и движение шипов
+        if (frame % 90 === 0) spawnObstacle();
         frame++;
 
         obstacles.forEach((obs, index) => {
-            obs.x -= 8;
-            
-            // Проверка столкновения
-            if (player.x + 5 < obs.x + obs.width - 5 &&
-                player.x + player.size - 5 > obs.x + 5 &&
-                player.y + 5 < obs.y + obs.height &&
-                player.y + player.size > obs.y) {
+            obs.x -= 9; // Скорость движения
+
+            // СТРОГАЯ ПРОВЕРКА СМЕРТИ (Хитбокс)
+            // Мы уменьшаем зону столкновения на 10 пикселей, чтобы было честно
+            const p = {
+                left: player.x + 5,
+                right: player.x + player.size - 5,
+                top: player.y + 5,
+                bottom: player.y + player.size - 5
+            };
+
+            // Проверка: зашел ли игрок в треугольник шипа
+            if (p.right > obs.x + 10 && p.left < obs.x + obs.width - 10 && p.bottom > obs.y - obs.height + 10) {
                 gameOver();
             }
 
-            if (obs.x < -50) {
+            if (obs.x < -100) {
                 obstacles.splice(index, 1);
                 score++;
                 document.getElementById('info').innerText = `Счет: ${score}`;
@@ -89,63 +106,68 @@
         });
     }
 
-    function drawPlayer() {
-        ctx.save();
-        ctx.translate(player.x + player.size/2, player.y + player.size/2);
-        ctx.rotate(player.rotation * Math.PI / 180);
-        
-        // Тело кубика
-        ctx.fillStyle = player.color;
-        ctx.fillRect(-player.size/2, -player.size/2, player.size, player.size);
-        ctx.strokeStyle = 'white';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(-player.size/2, -player.size/2, player.size, player.size);
-
-        // Рисуем лицо (глаза)
-        ctx.fillStyle = 'black';
-        // Левый глаз
-        ctx.fillRect(-player.size/4, -player.size/4, 6, 6);
-        // Правый глаз
-        ctx.fillRect(player.size/8, -player.size/4, 6, 6);
-        // Рот
-        ctx.fillRect(-player.size/4, player.size/8, player.size/2, 4);
-
-        ctx.restore();
-    }
-
     function draw() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        // Отрисовка фона
+        const gradient = ctx.createLinearGradient(0, 0, 0, groundY);
+        gradient.addColorStop(0, '#0051ff');
+        gradient.addColorStop(1, '#001e5e');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, canvas.width, groundY);
 
-        // Сетка на фоне (как в оригинале)
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
-        for (let i = 0; i < canvas.width; i += 50) {
+        // Отрисовка пола
+        ctx.fillStyle = '#222';
+        ctx.fillRect(0, groundY, canvas.width, canvas.height - groundY);
+        ctx.strokeStyle = 'white';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(0, groundY);
+        ctx.lineTo(canvas.width, groundY);
+        ctx.stroke();
+
+        // Сетка
+        ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+        ctx.lineWidth = 1;
+        for (let i = 0; i < canvas.width; i += 60) {
             ctx.beginPath();
-            ctx.moveTo(i - (frame % 50), 0);
-            ctx.lineTo(i - (frame % 50), canvas.height);
+            ctx.moveTo(i - (frame * 9 % 60), 0);
+            ctx.lineTo(i - (frame * 9 % 60), groundY);
             ctx.stroke();
         }
 
-        drawPlayer();
+        // Рисуем игрока с лицом
+        ctx.save();
+        ctx.translate(player.x + player.size/2, player.y + player.size/2);
+        ctx.rotate(player.rotation * Math.PI / 180);
+        ctx.fillStyle = player.color;
+        ctx.fillRect(-player.size/2, -player.size/2, player.size, player.size);
+        ctx.strokeStyle = 'black';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(-player.size/2, -player.size/2, player.size, player.size);
+        // Глаза и рот
+        ctx.fillStyle = 'black';
+        ctx.fillRect(-12, -12, 8, 8);
+        ctx.fillRect(4, -12, 8, 8);
+        ctx.fillRect(-12, 8, 24, 4);
+        ctx.restore();
 
         // Рисуем черные шипы
         obstacles.forEach(obs => {
-            ctx.fillStyle = obs.color;
+            ctx.fillStyle = 'black';
             ctx.beginPath();
-            ctx.moveTo(obs.x, obs.y);
-            ctx.lineTo(obs.x + obs.width / 2, obs.y - obs.height);
-            ctx.lineTo(obs.x + obs.width, obs.y);
+            ctx.moveTo(obs.x, obs.y); // Нижний левый угол
+            ctx.lineTo(obs.x + obs.width / 2, obs.y - obs.height); // Вершина
+            ctx.lineTo(obs.x + obs.width, obs.y); // Нижний правый угол
+            ctx.closePath();
             ctx.fill();
-            // Обводка шипа для четкости
             ctx.strokeStyle = 'white';
-            ctx.lineWidth = 1;
+            ctx.lineWidth = 2;
             ctx.stroke();
         });
-    }
 
-    function gameLoop() {
-        update();
-        draw();
-        requestAnimationFrame(gameLoop);
+        if (gameActive) requestAnimationFrame(() => {
+            update();
+            draw();
+        });
     }
 
     function jump() {
@@ -157,13 +179,17 @@
 
     function gameOver() {
         gameActive = false;
-        alert("Упс! Попробуй еще раз. Счет: " + score);
-        location.reload();
+        setTimeout(() => {
+            alert("Игра окончена! Твой счет: " + score);
+            location.reload();
+        }, 10);
     }
 
     window.addEventListener('keydown', (e) => { if (e.code === 'Space' || e.code === 'ArrowUp') jump(); });
+    window.addEventListener('touchstart', (e) => { e.preventDefault(); jump(); }, {passive: false});
     window.addEventListener('mousedown', jump);
-    gameLoop();
+
+    draw();
 </script>
 </body>
 </html>
